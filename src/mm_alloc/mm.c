@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
-#include "memlib.h"
 
 /* Constants */
 #define WSIZE           4
@@ -22,6 +21,10 @@
 
 /* Pack a size and allocated bit into a word */
 #define PACK(size, alloc)   ((size) | (alloc))
+
+/* MIN and MAX */
+#define MAX(x, y)   ((x) > (y) ? (x) : (y))
+#define MIN(x, y)   ((x) < (y) ? (x) : (y))
 
 /* Read and write 8 bytes at address p */
 #define GET(p)      (*((size_t*) (p)))
@@ -122,11 +125,11 @@ static inline __attribute__((unused)) int block_index(size_t x) {
 int mm_init(void)
 {
 	/* Allocating segregated free list pointers on heap */
-	if ((pool = mem_sbrk(TOTALLIST * DSIZE)) == NULL)
+	if ((pool = sbrk(CHUNKSIZE)) == NULL)
 		return -1;
 
 	/* Creating prologue and epilogue */
-	if ((p_start = mem_sbrk(4 * WSIZE)) == NULL)
+	if ((p_start = sbrk(4 * WSIZE)) == NULL)
 		return -1;
 	/* Alignment padding */
 	PUT4BYTES(p_start, 0);
@@ -140,7 +143,7 @@ int mm_init(void)
 	/* Initializing the segregated list pointers on heap */
 	size_t ipool;
 	for (ipool = POOL_START; ipool <= POOL_END; ipool++) {
-		PUT(pool + DSIZE * (ipool - POOL_START);, (size_t) NULL);
+		PUT(pool + DSIZE * (ipool - POOL_START), (size_t) NULL);
 	}
 	return 0;
 }
@@ -489,24 +492,24 @@ void *realloc(void *ptr, size_t size) {
 	size_t copysize;
 
 	/* Special case */
-	if (oldptr == NULL)
+	if (ptr == NULL)
 		return malloc(size);
 
 	/* Special case */
 	if (size == 0) {
-		free(oldptr);
+		free(ptr);
 		return NULL;
 	}
 
 	/* Allocate new free block from existing content */
 	newaddress = malloc(size);
-	copysize = MIN(size, GET_SIZE(HDRP(oldptr)) - WSIZE);
+	copysize = MIN(size, GET_SIZE(HDRP(ptr)) - WSIZE);
 
 	/* Move from source to dest */
-	memmove(newaddress, oldptr, copysize);
+	memmove(newaddress, ptr, copysize);
 
 	/* Free */
-	free(oldptr);
+	free(ptr);
 
 	return newaddress;
 }
