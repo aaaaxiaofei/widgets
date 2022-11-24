@@ -2,6 +2,8 @@
 #define PQ_H
 #include "dsexceptions.h"
 #include <vector>
+#include <climits>
+
 
 using namespace std;
 
@@ -36,7 +38,7 @@ public:
     PQ( const vector<ID> & tasks, const vector<int> & priorities ) {
 		for (int i = 0; i < tasks.size(); ++i) {
 			values.push_back(make_pair(priorities[i], tasks[i]));
-			updatePriority(values.size() - 1);
+			increasePriority(values.size() - 1);
 		}
     }
 						     
@@ -52,21 +54,12 @@ public:
 			throw UnderflowException{ };
 		}
 		ID result = values[0].second;
+		values[0].first = INT_MAX;
 		int cur = 0;
-		while (cur < values.size() - 1) {
-			int p1 = cur * 2 + 1, p2 = cur * 2 + 2;
-			if (p2 < values.size()) {
-				int p = values[p1].first > values[p2].first ? p2 : p1;
-				swap(values[cur], values[p]);
-				cur = p;
-			} else if (p1 < values.size()) {
-				swap(values[cur], values[p1]);
-				cur = p1;				
-			} else {
-				swap(values[cur], values.back());
-				updatePriority(cur);
-				break;
-			}
+		cur = decreasePriority(cur);
+		if (cur != values.size() - 1) {
+			swap(values[cur], values.back());
+			increasePriority(cur);
 		}
 		values.pop_back();
 		return result;
@@ -84,7 +77,7 @@ public:
     // Insert ID x with priority p.
     void insert( const ID & x, int p ) {
 		values.push_back(make_pair(p, x));
-		updatePriority(values.size() - 1);
+		increasePriority(values.size() - 1);
 	}
 
     // Update the priority of ID x to p
@@ -94,14 +87,17 @@ public:
 		for (int i = 0; i < values.size(); ++i) {
 			if (values[i].second == x) {
 				values[i].first = p;
-				updatePriority(i);
+				int cur = increasePriority(i);
+				if (cur == i) {
+					decreasePriority(i);
+				}
 				updated = true;
 				break;
 			}
 		}
 		if (!updated) {
 			values.push_back(make_pair(p, x));
-			updatePriority(values.size() - 1);
+			increasePriority(values.size() - 1);
 		}
 	}
 
@@ -118,14 +114,33 @@ public:
 private:
     vector<pair<int, ID>> values;
 
-	// Update the priority queue with new element inserted at cur
-	void updatePriority(int cur) {
+	// Insrease the priority queue with element change at cur
+	int increasePriority(int cur) {
 		int parent = (cur - 1) / 2;
 		while (cur > 0 && values[cur].first < values[parent].first) {
 			swap(values[cur], values[parent]);
 			cur = parent;
 			parent = (cur - 1) / 2;
 		}
+		return cur;
+	}
+
+	// Decrease the priority queue with element change at cur
+	int decreasePriority(int cur) {
+		while (cur < values.size()) {
+			int c1 = cur * 2 + 1, c2 = cur * 2 + 2;
+			if (c2 < values.size()) {
+				int c = values[c1].first > values[c2].first ? c2 : c1;
+				swap(values[cur], values[c]);
+				cur = c;
+			} else if (c1 < values.size()) {
+				swap(values[cur], values[c1]);
+				cur = c1;				
+			} else {
+				break;
+			}
+		}
+		return cur;
 	}
 };
 #endif
